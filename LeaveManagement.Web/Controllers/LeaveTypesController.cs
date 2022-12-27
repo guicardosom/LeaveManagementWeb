@@ -8,35 +8,32 @@ using Microsoft.EntityFrameworkCore;
 using LeaveManagement.Web.Data;
 using AutoMapper;
 using LeaveManagement.Web.Models;
+using LeaveManagement.Web.Contracts;
 
 namespace LeaveManagement.Web.Controllers
 {
     public class LeaveTypesController : Controller
     {
-        private readonly ApplicationDbContext _context;
+        private readonly ILeaveTypeRepository leaveTypeRepository;
         private readonly IMapper mapper;
 
-        public LeaveTypesController(ApplicationDbContext context, IMapper mapper)
+        public LeaveTypesController(ILeaveTypeRepository leaveTypeRepository, IMapper mapper)
         {
-            _context = context;
+            this.leaveTypeRepository = leaveTypeRepository;
             this.mapper = mapper;
         }
 
         // GET: LeaveTypes
         public async Task<IActionResult> Index()
         {
-              return View(mapper.Map<List<LeaveTypeVM>>(await _context.LeaveTypes.ToListAsync()));
+            return View(mapper.Map<List<LeaveTypeVM>>(await leaveTypeRepository.GetAllAsync()));
         }
 
         // GET: LeaveTypes/Details/5
         public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null || _context.LeaveTypes == null)
-            {
-                return NotFound();
-            }
+        { 
+            var leaveType = await leaveTypeRepository.GetAsync(id);
 
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
             if (leaveType == null)
             {
                 return NotFound();
@@ -60,8 +57,7 @@ namespace LeaveManagement.Web.Controllers
         {
             if (ModelState.IsValid)
             {
-                _context.Add(mapper.Map<LeaveType>(leaveTypeVM));
-                await _context.SaveChangesAsync();
+                await leaveTypeRepository.AddAsync(mapper.Map<LeaveType>(leaveTypeVM));
                 return RedirectToAction(nameof(Index));
             }
             return View(leaveTypeVM);
@@ -70,12 +66,8 @@ namespace LeaveManagement.Web.Controllers
         // GET: LeaveTypes/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
-            if (id == null || _context.LeaveTypes == null)
-            {
-                return NotFound();
-            }
+            var leaveType = await leaveTypeRepository.GetAsync(id);
 
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
             if (leaveType == null)
             {
                 return NotFound();
@@ -100,12 +92,11 @@ namespace LeaveManagement.Web.Controllers
             {
                 try
                 {
-                    _context.Update(mapper.Map<LeaveType>(leaveTypeVM));
-                    await _context.SaveChangesAsync();
+                    await leaveTypeRepository.UpdateAsync(mapper.Map<LeaveType>(leaveTypeVM));
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!LeaveTypeExists(leaveTypeVM.Id))
+                    if (!await leaveTypeRepository.Exists(leaveTypeVM.Id))
                     {
                         return NotFound();
                     }
@@ -124,23 +115,8 @@ namespace LeaveManagement.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            if (_context.LeaveTypes == null)
-            {
-                return Problem("Entity set 'ApplicationDbContext.LeaveTypes'  is null.");
-            }
-            var leaveType = await _context.LeaveTypes.FindAsync(id);
-            if (leaveType != null)
-            {
-                _context.LeaveTypes.Remove(leaveType);
-            }
-            
-            await _context.SaveChangesAsync();
+            await leaveTypeRepository.DeleteAsync(id);
             return RedirectToAction(nameof(Index));
-        }
-
-        private bool LeaveTypeExists(int id)
-        {
-          return _context.LeaveTypes.Any(e => e.Id == id);
         }
     }
 }
